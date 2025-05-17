@@ -1,0 +1,50 @@
+import requests
+
+#set base comp in TouchDesigner
+base_comp = parent()
+if base_comp:
+    address_param_value = base_comp.par.Address.eval() #assigns Address parameter from user input into base comp
+    month_param_value = base_comp.par.Birthmonth.eval() #..month..
+    print(address_param_value,month_param_value)
+else:
+    address_param_value = None                          #error if no user input
+    print("Error: Base COMP ADDRESS not found.")
+
+#fetch Soundscore API
+params = {'address': address_param_value }
+url = 'https://api.howloud.com/address'
+headers = {'x-api-key': 'INSERT YOUR API KEY HERE'}
+r = requests.get(url, params=params, headers=headers)
+json_data = r.json()
+print(json_data['result'])
+
+n = json_data['result']
+print(n[0]) #should output list of values for the specific location 
+
+#set month parameter as input for the Switch Operator by transforming month_param_value with data operators in Touch Designer 
+
+switch_op = op('switch1')
+target = op('datto2')[month_param_value] #converts month to value in the range 1-12
+switch_op.par.input = target
+print(target)  
+
+# original
+output_table = op('table_score')
+
+output_table.clear()
+text_to_number = {'Busy': 2, 'Active': 1, 'Calm': 0}
+
+for key, value in n[0].items():
+    converted_value = text_to_number.get(value, value)
+    output_table.appendRow([key, converted_value])
+    
+# reversed table for Subdivide Operator because I want to reverse the dimensions 
+
+output_table_reversed = op('table_score_reversed')
+
+output_table_reversed.clear()
+text_to_number_reversed = {'Busy': 0, 'Active': 1, 'Calm': 2}
+
+for key, value in n[0].items():
+    converted_value_reversed = text_to_number_reversed.get(value, value)
+    output_table_reversed.appendRow([key, converted_value_reversed])
